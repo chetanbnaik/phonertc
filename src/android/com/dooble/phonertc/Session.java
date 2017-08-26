@@ -88,10 +88,15 @@ public class Session {
 		try {
 			JSONObject json = new JSONObject(message);
 			String type = (String) json.get("type");
-			if (type.equals("candidate")) {
+			if (type.equals("CANDIDATE")) {
+				JSONObject payload = (JSONObject) json.get("payload");
+				JSONObject candidatet = (JSONObject) payload.get("candidate");
 				final IceCandidate candidate = new IceCandidate(
+						(String) candidatet.get("sdpMid"), candidatet.getInt("sdpMLineIndex"),
+						(String) candidatet.get("candidate"));
+				/* final IceCandidate candidate = new IceCandidate(
 						(String) json.get("id"), json.getInt("label"),
-						(String) json.get("candidate"));
+						(String) json.get("candidate")); */
 				
 				synchronized (_queuedRemoteCandidatesLocker) {
 					if (_queuedRemoteCandidates != null) {
@@ -107,16 +112,18 @@ public class Session {
 					}
 				}
 
-			} else if (type.equals("answer") || type.equals("offer")) {
+			} else if (type.equals("ANSWER") || type.equals("OFFER")) {
+				JSONObject payload = (JSONObject) json.get("payload");
+				JSONObject sdpRecv = (JSONObject) payload.get("sdp");
 				final SessionDescription sdp = new SessionDescription(
 						SessionDescription.Type.fromCanonicalForm(type),
-						preferISAC((String) json.get("sdp")));
+						preferISAC((String) sdpRecv.get("sdp")));
 				_plugin.getActivity().runOnUiThread(new Runnable() {
 					public void run() {
 						_peerConnection.setRemoteDescription(_sdpObserver, sdp);
 					}
 				});
-			} else if (type.equals("bye")) {
+			} else if (type.equals("LEAVE")) {
 				Log.d("com.dooble.phonertc", "Remote end hung up; dropping PeerConnection");
 
 				_plugin.getActivity().runOnUiThread(new Runnable() {
@@ -222,7 +229,7 @@ public class Session {
 	        if (sendByeMessage) {
 				try {
 					JSONObject data = new JSONObject();
-					data.put("type", "bye");
+					data.put("type", "LEAVE");
 					sendMessage(data);
 				} catch (JSONException e) {}
 	        }
@@ -259,10 +266,20 @@ public class Session {
 				public void run() {
 					try {
 						JSONObject json = new JSONObject();
-						json.put("type", "candidate");
-						json.put("label", iceCandidate.sdpMLineIndex);
+						//json.put("type", "candidate");
+						json.put("type", "CANDIDATE");
+						JSONObject payload = new JSONObject();
+						JSONObject candidate = new JSONObject();
+						candidate.put("candidate",iceCandidate.sdp);
+						candidate.put("sdpMLineIndex",iceCandidate.sdpMLineIndex);
+						candidate.put("sdpMid",iceCandidate.sdpMid);
+						payload.put("candidate",candidate);
+						payload.put("connectionId",_sessionKey);
+						payload.put("type","media");
+						json.put("payload",payload);
+						/* json.put("label", iceCandidate.sdpMLineIndex);
 						json.put("id", iceCandidate.sdpMid);
-						json.put("candidate", iceCandidate.sdp);
+						json.put("candidate", iceCandidate.sdp); */
 						sendMessage(json);
 					} catch (JSONException e) {
 						// TODO Auto-generated catch bloc
@@ -306,7 +323,24 @@ public class Session {
 		@Override
 		public void onIceConnectionChange(IceConnectionState arg0) {
 			// TODO Auto-generated method stub
+			switch(arg0) {
+				case DISCONNECTED:
+				 	_plugin.getActivity().runOnUiThread(new Runnable() {
+						public void run() {
+							disconnect(false);
+						}
+					});
+					break;
 
+				case FAILED:
+					_plugin.getActivity().runOnUiThread(new Runnable() {
+						public void run() {
+							disconnect(false);
+						}
+					});
+					break;
+			}
+			
 		}
 
 		@Override
@@ -359,8 +393,18 @@ public class Session {
 							origSdp.type, preferISAC(origSdp.description));
 					try {
 						JSONObject json = new JSONObject();
-						json.put("type", sdp.type.canonicalForm());
-						json.put("sdp", sdp.description);
+						json.put("type", sdp.type);
+						JSONObject payload = new JSONObject();
+						JSONObject sdpSend = new JSONObject();
+						sdpSend.put("type", sdp.type.canonicalForm());
+						sdpSend.put("sdp", sdp.description);
+						payload.put("sdp",sdpSend);
+						payload.put("type","media");
+						payload.put("label",null);
+						payload.put("browser","android");
+						payload.put("connectionId",_sessionKey);
+						json.put("payload", payload);
+						//json.put("sdp", sdp.description);
 						sendMessage(json);
 						_peerConnection.setLocalDescription(_sdpObserver, sdp);
 					} catch (JSONException e) {
