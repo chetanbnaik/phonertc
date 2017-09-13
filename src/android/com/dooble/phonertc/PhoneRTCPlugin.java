@@ -394,7 +394,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 					_videoConfig.getContainer().getY(),
 					100, //_videoConfig.getContainer().getWidth(),
 					100, //_videoConfig.getContainer().getHeight(),
-					RendererCommon.ScalingType.SCALE_ASPECT_FILL, !pair.checkisLocal())
+					RendererCommon.ScalingType.SCALE_ASPECT_FILL, false)
 			));
 			pair.getVideoTrack().addRenderer(pair.getVideoRenderer());
 		}
