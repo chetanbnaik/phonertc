@@ -27,7 +27,8 @@ function Session(config) {
 
   if (typeof config.isInitiator === 'undefined' ||
       typeof config.turn === 'undefined' ||
-      typeof config.streams === 'undefined') {
+      typeof config.streams === 'undefined' || 
+      typeof config.showLocal === 'undefined') {
     throw {
       name: 'PhoneRTC Error',
       message: 'isInitiator, turn and streams are required parameters.'
@@ -37,7 +38,7 @@ function Session(config) {
   var self = this;
   self.events = {};
   self.config = config;
-  self.sessionKey = createUUID();
+  self.sessionKey = config.sessionKey ? config.sessionKey : createUUID();
 
   // make all config properties accessible from this object
   Object.keys(config).forEach(function (prop) {
@@ -179,7 +180,7 @@ function setVideoView(config) {
   }
 
   config.devicePixelRatio = window.devicePixelRatio || 2;
-
+  
   exec(null, null, 'PhoneRTCPlugin', 'setVideoView', [config]);
 
   if (container) {
@@ -206,3 +207,7 @@ exports.showVideoView = function () {
 exports.checkPermissions = function (success, fail) {
   exec(success, fail, 'PhoneRTCPlugin', 'checkPermissions', []);
 };
+
+exports.switchCamera = function() {
+  exec(null, null, 'PhoneRTCPlugin', 'switchCamera', []);
+}

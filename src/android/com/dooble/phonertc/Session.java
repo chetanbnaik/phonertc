@@ -156,6 +156,9 @@ public class Session {
 		}
 		
 		_peerConnection.addStream(_localStream);
+		if (_config.doShowLocal() && _plugin.getLocalVideoTrack() != null) {
+			_plugin.addRemoteVideoTrack(_plugin.getLocalVideoTrack(),true);
+		}
 	}
 	
 	void sendMessage(JSONObject data) {
@@ -297,7 +300,7 @@ public class Session {
 						_videoTrack = stream.videoTracks.get(0);
 					
 						if (_videoTrack != null) {
-							_plugin.addRemoteVideoTrack(_videoTrack);
+							_plugin.addRemoteVideoTrack(_videoTrack,false);
 						}
 					}
 					

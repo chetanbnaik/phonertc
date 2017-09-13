@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import android.util.Log;
 
 import android.Manifest;
 import android.app.Activity;
@@ -52,6 +53,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 	private WebView.LayoutParams _videoParams;
 	private boolean _shouldDispose = true;
 	private boolean _initializedAndroidGlobals = false;
+	private VideoCapturerAndroid.CameraSwitchHandler switchHandler;
 
 	public CallbackContext callbackContext;
 
@@ -172,6 +174,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 
 			// make sure it's not junk
 			if (_videoConfig.getContainer().getWidth() == 0 || _videoConfig.getContainer().getHeight() == 0) {
+				Log.d("com.packetservo.merchant","junk video container");
 				return false;
 			}
 
@@ -222,8 +225,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 					}
 				}
 			});
-		}
-		else if (action.equals("checkPermissions")){
+		} else if (action.equals("checkPermissions")){
 			if(PermissionHelper.hasPermission(this, permissions[0]) && PermissionHelper.hasPermission(this, permissions[1]) && PermissionHelper.hasPermission(this, permissions[2])) {
 				callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK));
 				return true;
@@ -237,6 +239,15 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 					callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR));
 				}
 			}
+		} else if (action.equals("switchCamera")) {
+			cordova.getActivity().runOnUiThread(new Runnable() {
+				public void run(){
+					if (_videoCapturer == null) return;
+					//if (_videoCapturer.isDisposed) return;
+					if (_localVideo == null) return;
+					switchCamera();
+				}
+			});
 		}
 
 		callbackContext.error("Invalid action: " + action);
@@ -247,7 +258,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 		_videoCapturer = getVideoCapturer();
 		_videoSource = _peerConnectionFactory.createVideoSource(_videoCapturer,
 				new MediaConstraints());
-		_localVideo = new VideoTrackRendererPair(_peerConnectionFactory.createVideoTrack("ARDAMSv0", _videoSource), null);
+		_localVideo = new VideoTrackRendererPair(_peerConnectionFactory.createVideoTrack("ARDAMSv0", _videoSource), null, true);
 		refreshVideoView();
 	}
 
@@ -294,11 +305,16 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 		}
 	}
 
+	private void switchCamera() {
+		Log.d("com.packetservo.merchant", "switching camera..");
+		_videoCapturer.switchCamera(null);
+	}
+
 	// Cycle through likely device names for the camera and return the first
 	// capturer that works, or crash if none do.
 	private VideoCapturerAndroid getVideoCapturer() {
-		String[] cameraFacing = { "front", "back" };
-		int[] cameraIndex = { 0, 1 };
+		String[] cameraFacing = { "back", "front" };
+		int[] cameraIndex = { 1, 0 };
 		int[] cameraOrientation = { 0, 90, 180, 270 };
 		for (String facing : cameraFacing) {
 			for (int index : cameraIndex) {
@@ -316,8 +332,8 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 		throw new RuntimeException("Failed to open capturer");
 	}
 
-	public void addRemoteVideoTrack(VideoTrack videoTrack) {
-		_remoteVideos.add(new VideoTrackRendererPair(videoTrack, null));
+	public void addRemoteVideoTrack(VideoTrack videoTrack, boolean isLocal) {
+		_remoteVideos.add(new VideoTrackRendererPair(videoTrack, null, isLocal));
 		refreshVideoView();
 	}
 
@@ -370,7 +386,21 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 			_videoView = null;
 		}
 
-		if (n > 0) {
+		if (n == 1) {
+			createVideoView();
+			VideoTrackRendererPair pair = _remoteVideos.get(0);
+			pair.setVideoRenderer(new VideoRenderer(
+				VideoRendererGui.create(_videoConfig.getContainer().getX(),
+					_videoConfig.getContainer().getY(),
+					100, //_videoConfig.getContainer().getWidth(),
+					100, //_videoConfig.getContainer().getHeight(),
+					RendererCommon.ScalingType.SCALE_ASPECT_FILL, !pair.checkisLocal())
+			));
+			pair.getVideoTrack().addRenderer(pair.getVideoRenderer());
+		}
+
+		if (n > 1) {
+			
 			createVideoView();
 
 			int rows = n < 9 ? 2 : 3;
@@ -404,7 +434,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 
 					pair.setVideoRenderer(new VideoRenderer(
 							VideoRendererGui.create(x, y, widthPercentage, heightPercentage,
-									RendererCommon.ScalingType.SCALE_ASPECT_BALANCED, true)));
+									RendererCommon.ScalingType.SCALE_ASPECT_FIT, true)));
 
 					pair.getVideoTrack().addRenderer(pair.getVideoRenderer());
 

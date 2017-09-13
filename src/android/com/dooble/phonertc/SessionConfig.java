@@ -10,6 +10,7 @@ public class SessionConfig {
 	private String _turnServerPassword;
 	private boolean _audioStreamEnabled;
 	private boolean _videoStreamEnabled;
+	private boolean _showLocal;
 	
 	public String getTurnServerHost() {
 		return _turnServerHost;
@@ -55,6 +56,14 @@ public class SessionConfig {
 		return _videoStreamEnabled;
 	}
 
+	public boolean doShowLocal() {
+		return _showLocal;
+	}
+
+	public void setShowLocal(boolean _showLocal) {
+		this._showLocal = _showLocal;
+	}
+
 	public void setVideoStreamEnabled(boolean _videoStreamEnabled) {
 		this._videoStreamEnabled = _videoStreamEnabled;
 	}
@@ -71,6 +80,7 @@ public class SessionConfig {
 		JSONObject streams = json.getJSONObject("streams");
 		config.setAudioStreamEnabled(streams.getBoolean("audio"));
 		config.setVideoStreamEnabled(streams.getBoolean("video"));
+		config.setShowLocal(json.getBoolean("showLocal"));
 		
 		return config;
 	}
