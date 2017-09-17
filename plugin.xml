@@ -126,6 +126,8 @@ In order to install PhoneRTC on iOS, please follow these steps:
 			<uses-permission android:name="android.permission.CAMERA" />
         </config-file>
 
+		<framework src="src/android/barcodescanner.gradle" custom="true" type="gradleReference"/>
+		<resource-file src="src/android/barcodescanner-release-2.1.5.aar" target="libs/barcodescanner.aar"/>
         <source-file src="libs/android/libjingle_peerconnection.jar" target-dir="libs"/>
 		<source-file src="libs/android/armeabi-v7a/libjingle_peerconnection_so.so" target-dir="libs/armeabi-v7a"/>
     </platform>

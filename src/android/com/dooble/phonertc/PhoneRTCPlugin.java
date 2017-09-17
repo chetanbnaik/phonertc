@@ -1,5 +1,8 @@
 package com.dooble.phonertc;
 
+/********** */
+import java.nio.IntBuffer;
+/********** */
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,6 +15,24 @@ import android.app.Activity;
 import android.graphics.Point;
 import android.view.View;
 import android.webkit.WebView;
+
+//import android.widget.Button;
+/********** */
+import android.graphics.Bitmap;
+import android.widget.TextView;
+import android.opengl.GLException;
+
+import com.google.zxing.ChecksumException;
+import com.google.zxing.FormatException;
+import com.google.zxing.MultiFormatReader;
+import com.google.zxing.BinaryBitmap;
+import com.google.zxing.LuminanceSource;
+import com.google.zxing.NotFoundException;
+import com.google.zxing.RGBLuminanceSource;
+import com.google.zxing.Reader;
+import com.google.zxing.Result;
+import com.google.zxing.common.HybridBinarizer;
+/********** */
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
@@ -36,6 +57,12 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.PermissionInfo;
 
+/*********** */
+import javax.microedition.khronos.egl.EGL10;
+import javax.microedition.khronos.egl.EGLContext;
+import javax.microedition.khronos.opengles.GL10;
+/********** */
+
 public class PhoneRTCPlugin extends CordovaPlugin {
 	private AudioSource _audioSource;
 	private AudioTrack _audioTrack;
@@ -56,6 +83,8 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 	private VideoCapturerAndroid.CameraSwitchHandler switchHandler;
 
 	public CallbackContext callbackContext;
+	private Bitmap snapshotBitmap;
+  	private TextView scanText;
 
 	protected final static String[] permissions = { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.WRITE_EXTERNAL_STORAGE };
 
@@ -174,7 +203,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 
 			// make sure it's not junk
 			if (_videoConfig.getContainer().getWidth() == 0 || _videoConfig.getContainer().getHeight() == 0) {
-				Log.d("com.packetservo.merchant","junk video container");
+				Log.d("com.packetservo","junk video container");
 				return false;
 			}
 
@@ -242,12 +271,36 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 		} else if (action.equals("switchCamera")) {
 			cordova.getActivity().runOnUiThread(new Runnable() {
 				public void run(){
-					if (_videoCapturer == null) return;
+					if (_videoCapturer == null) {return;}
 					//if (_videoCapturer.isDisposed) return;
-					if (_localVideo == null) return;
+					if (_localVideo == null) {return;}
 					switchCamera();
 				}
 			});
+		} else if (action.equals("scanQR")) {
+			cordova.getThreadPool().execute(new Runnable() {
+				public void run() {
+					if (_videoView == null) {return;}
+
+					captureBitmap(new BitmapReadyCallbacks(){
+						@Override
+						public void onBitmapReady(Bitmap bitmap) {
+							int[] intArray = new int[bitmap.getWidth()*bitmap.getHeight()];
+							bitmap.getPixels(intArray, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
+							LuminanceSource source = new RGBLuminanceSource(bitmap.getWidth(), bitmap.getHeight(),intArray);
+							BinaryBitmap binaryBitmap = new BinaryBitmap(new HybridBinarizer(source));
+							Reader reader = new MultiFormatReader();
+							try {
+								Result result = reader.decode(binaryBitmap);
+								scanText.setText(result.toString());
+							} catch (NotFoundException e) {e.printStackTrace();}
+							catch (ChecksumException e) {e.printStackTrace();}
+							catch (FormatException e) {e.printStackTrace();}
+						}
+					});
+				}
+			});
+			return true;
 		}
 
 		callbackContext.error("Invalid action: " + action);
@@ -306,7 +359,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 	}
 
 	private void switchCamera() {
-		Log.d("com.packetservo.merchant", "switching camera..");
+		Log.d("com.packetservo", "switching camera..");
 		_videoCapturer.switchCamera(null);
 	}
 
@@ -354,6 +407,57 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 		}
 	}
 
+	private interface BitmapReadyCallbacks {
+		void onBitmapReady(Bitmap bitmap);
+	}
+
+	private void captureBitmap(final BitmapReadyCallbacks bitmapReadyCallbacks){
+		if (_videoView == null) { return; }
+		_videoView.queueEvent(new Runnable() {
+		@Override
+		public void run() {
+			EGL10 egl = (EGL10) EGLContext.getEGL();
+			GL10 gl = (GL10)egl.eglGetCurrentContext().getGL();
+			snapshotBitmap = createBitmapFromGLSurface(0,0,_videoView.getWidth(),_videoView.getHeight(),gl);
+
+			cordova.getActivity().runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					bitmapReadyCallbacks.onBitmapReady(snapshotBitmap);
+				}
+			});
+		}
+		});
+	}
+
+	private Bitmap createBitmapFromGLSurface(int x, int y, int w, int h, GL10 gl) throws OutOfMemoryError {
+		int bitmapBuffer[] = new int[w * h];
+		int bitmapSource[] = new int[w * h];
+		IntBuffer intBuffer = IntBuffer.wrap(bitmapBuffer);
+		intBuffer.position(0);
+
+		try {
+			gl.glReadPixels(x, y, w, h, GL10.GL_RGBA, GL10.GL_UNSIGNED_BYTE, intBuffer);
+			int offset1, offset2;
+			for (int i = 0; i < h; i++) {
+				offset1 = i * w;
+				offset2 = (h - i - 1) * w;
+				for (int j = 0; j < w; j++) {
+				int texturePixel = bitmapBuffer[offset1 + j];
+				int blue = (texturePixel >> 16) & 0xff;
+				int red = (texturePixel << 16) & 0x00ff0000;
+				int pixel = (texturePixel & 0xff00ff00) | red | blue;
+				bitmapSource[offset2 + j] = pixel;
+				}
+			}
+		} catch (GLException e) {
+			Log.e("com.packetservo", "createBitmapFromGLSurface: " + e.getMessage(), e);
+			return null;
+		}
+
+		return Bitmap.createBitmap(bitmapSource, w, h, Bitmap.Config.ARGB_8888);
+	}
+
 	private void createVideoView() {
 		Point size = new Point();
 		size.set((int)(_videoConfig.getContainer().getWidth() * _videoConfig.getDevicePixelRatio()),
@@ -361,8 +465,10 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 
 		_videoView = new VideoGLView(cordova.getActivity(), size);
 		VideoRendererGui.setView(_videoView, null);
-
+		scanText = new TextView(cordova.getActivity());
+    	scanText.setText("Scan results");
 		((WebView) webView.getView()).addView(_videoView, _videoParams);
+		((WebView) webView.getView()).addView(scanText, _videoParams);
 	}
 
 	private void refreshVideoView() {
@@ -490,6 +596,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 					if (_videoView != null) {
 						_videoView.setVisibility(View.GONE);
 						((WebView) webView.getView()).removeView(_videoView);
+						((WebView) webView.getView()).removeView(scanText);
 					}
 
 					if (_videoSource != null) {
