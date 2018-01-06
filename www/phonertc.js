@@ -208,8 +208,8 @@ exports.checkPermissions = function (success, fail) {
   exec(success, fail, 'PhoneRTCPlugin', 'checkPermissions', []);
 };
 
-exports.scanQR = function() {
-  exec(null, null, 'PhoneRTCPlugin', 'scanQR', []);
+exports.scanQR = function(success, fail) {
+  exec(success, fail, 'PhoneRTCPlugin', 'scanQR', []);
 }
 
 exports.switchCamera = function() {
