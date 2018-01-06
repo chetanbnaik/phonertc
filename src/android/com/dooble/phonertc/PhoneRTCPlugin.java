@@ -19,7 +19,7 @@ import android.webkit.WebView;
 //import android.widget.Button;
 /********** */
 import android.graphics.Bitmap;
-import android.widget.TextView;
+// import android.widget.TextView;
 import android.opengl.GLException;
 
 import com.google.zxing.ChecksumException;
