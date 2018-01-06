@@ -292,19 +292,19 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 							Reader reader = new MultiFormatReader();
 							try {
 								Result result = reader.decode(binaryBitmap);
-								_callbackContext.sendPluginResult(QRCodePluginResult(result.toString());
+								_callbackContext.success(result.toString());
 								// scanText.setText(result.toString());
 							} catch (NotFoundException e) {
 								e.printStackTrace();
-								_callbackContext.sendPluginResult(QRCodeFailed(e.message));
+								_callbackContext.error(e.toString());
 							}
 							catch (ChecksumException e) {
 								e.printStackTrace();
-								_callbackContext.sendPluginResult(QRCodeFailed(e.message));
+								_callbackContext.error(e.toString());
 							}
 							catch (FormatException e) {
 								e.printStackTrace();
-								_callbackContext.sendPluginResult(QRCodeFailed(e.message));
+								_callbackContext.error(e.toString());
 							}
 						}
 					});
@@ -592,7 +592,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 		JSONObject json = new JSONObject();
 		json.put("type", "qrcode");
 		json.put("qrcode", scanText);
-
+		
 		PluginResult result = new PluginResult(PluginResult.Status.OK, json);
 		result.setKeepCallback(true);
 
@@ -604,7 +604,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 		json.put("type","qrcode");
 		json.put("error", error);
 
-		PluginResult result = new PluginResult(PluginResult.Status.OK, json);
+		PluginResult result = new PluginResult(PluginResult.Status.ERROR, json);
 		result.setKeepCallback(true);
 
 		return result;
