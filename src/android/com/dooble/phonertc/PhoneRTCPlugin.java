@@ -84,7 +84,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 
 	public CallbackContext callbackContext;
 	private Bitmap snapshotBitmap;
-  	private TextView scanText;
+  	// private TextView scanText;
 
 	protected final static String[] permissions = { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.WRITE_EXTERNAL_STORAGE };
 
@@ -292,10 +292,20 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 							Reader reader = new MultiFormatReader();
 							try {
 								Result result = reader.decode(binaryBitmap);
-								scanText.setText(result.toString());
-							} catch (NotFoundException e) {e.printStackTrace();}
-							catch (ChecksumException e) {e.printStackTrace();}
-							catch (FormatException e) {e.printStackTrace();}
+								_callbackContext.sendPluginResult(QRCodePluginResult(result.toString());
+								// scanText.setText(result.toString());
+							} catch (NotFoundException e) {
+								e.printStackTrace();
+								_callbackContext.sendPluginResult(QRCodeFailed(e.message));
+							}
+							catch (ChecksumException e) {
+								e.printStackTrace();
+								_callbackContext.sendPluginResult(QRCodeFailed(e.message));
+							}
+							catch (FormatException e) {
+								e.printStackTrace();
+								_callbackContext.sendPluginResult(QRCodeFailed(e.message));
+							}
 						}
 					});
 				}
@@ -465,10 +475,10 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 
 		_videoView = new VideoGLView(cordova.getActivity(), size);
 		VideoRendererGui.setView(_videoView, null);
-		scanText = new TextView(cordova.getActivity());
-    	scanText.setText("Scan results");
+		// scanText = new TextView(cordova.getActivity());
+    	// scanText.setText("Scan results");
 		((WebView) webView.getView()).addView(_videoView, _videoParams);
-		((WebView) webView.getView()).addView(scanText, _videoParams);
+		// ((WebView) webView.getView()).addView(scanText, _videoParams);
 	}
 
 	private void refreshVideoView() {
@@ -578,6 +588,28 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 		return result;
 	}
 
+	PluginResult QRCodePluginResult(String scanText) throws JSONException {
+		JSONObject json = new JSONObject();
+		json.put("type", "qrcode");
+		json.put("qrcode", scanText);
+
+		PluginResult result = new PluginResult(PluginResult.Status.OK, json);
+		result.setKeepCallback(true);
+
+		return result;
+	}
+
+	PluginResult QRCodeFailed(String error) throws JSONException {
+		JSONObject json = new JSONObject();
+		json.put("type","qrcode");
+		json.put("error", error);
+
+		PluginResult result = new PluginResult(PluginResult.Status.OK, json);
+		result.setKeepCallback(true);
+
+		return result;
+	}
+
 	public void onSessionDisconnect(String sessionKey) {
 		_sessions.remove(sessionKey);
 
@@ -596,7 +628,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 					if (_videoView != null) {
 						_videoView.setVisibility(View.GONE);
 						((WebView) webView.getView()).removeView(_videoView);
-						((WebView) webView.getView()).removeView(scanText);
+						// ((WebView) webView.getView()).removeView(scanText);
 					}
 
 					if (_videoSource != null) {
