@@ -296,15 +296,15 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 								// scanText.setText(result.toString());
 							} catch (NotFoundException e) {
 								e.printStackTrace();
-								_callbackContext.error(e.toString());
+								_callbackContext.error(e.getMessage());
 							}
 							catch (ChecksumException e) {
 								e.printStackTrace();
-								_callbackContext.error(e.toString());
+								_callbackContext.error(e.getMessage());
 							}
 							catch (FormatException e) {
 								e.printStackTrace();
-								_callbackContext.error(e.toString());
+								_callbackContext.error(e.getMessage());
 							}
 						}
 					});
